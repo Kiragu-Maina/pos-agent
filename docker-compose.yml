@@ -1,0 +1,59 @@
+# Runs the POS agent alongside a fake network thermal printer, so the whole
+# print path can be exercised end to end with no hardware.
+#
+#   docker compose up --build
+#
+# Then open http://localhost:7777, go to Setup, and point the printer at
+# "printer:9100" (the agent can also discover it with Find my printer). Every
+# receipt it prints shows up in:  docker compose logs -f printer
+name: pos-system
+
+services:
+  # A stand in for a real network receipt printer. It listens on the raw
+  # ESC/POS port and logs each job it receives.
+  printer:
+    build: .
+    image: pos-system:latest
+    command: ["fakeprinter"]
+    environment:
+      PRINTER_ADDR: ":9100"
+    networks:
+      - posnet
+    ports:
+      # Published so you can also poke it from the host, for example:
+      #   printf 'hello\n' | nc localhost 9100
+      - "9100:9100"
+    restart: unless-stopped
+
+  # The POS agent itself.
+  pos:
+    build: .
+    image: pos-system:latest
+    command: ["pos"]
+    depends_on:
+      - printer
+    environment:
+      POS_ADDR: "0.0.0.0:7777" # bind all interfaces so the port can be published
+      POS_DATA: "/data/pos.db" # persist on the named volume below
+      POS_NO_BROWSER: "1"      # there is no desktop browser in a container
+      TZ: "Africa/Nairobi"     # correct local day for the sales dashboard
+    networks:
+      - posnet
+    ports:
+      - "7777:7777"
+    volumes:
+      - posdata:/data
+    restart: unless-stopped
+
+networks:
+  posnet:
+    driver: bridge
+    ipam:
+      config:
+        # A /24, like a typical shop LAN, so the agent's Find my printer sweep
+        # works here too. The agent only scans /24 or narrower networks, which
+        # the default Docker bridge (a /16) would not satisfy.
+        - subnet: 172.28.0.0/24
+
+volumes:
+  posdata:

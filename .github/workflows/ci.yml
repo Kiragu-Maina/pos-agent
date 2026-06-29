@@ -1,0 +1,64 @@
+name: ci
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.20'
+      - run: go vet ./...
+      - run: go test ./...
+
+  windows-smoke:
+    # Build the exact shipped artifact (32-bit, GUI subsystem) and prove it
+    # launches and serves on a real Windows machine — not Wine.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.20'
+
+      - name: Build agent (Windows, 386, GUI)
+        shell: bash
+        run: |
+          GOOS=windows GOARCH=386 CGO_ENABLED=0 \
+            go build -trimpath -ldflags="-s -w -H windowsgui" -o pos.exe ./cmd/pos
+          ls -la pos.exe
+
+      - name: Launch and assert it serves
+        shell: pwsh
+        run: |
+          $env:POS_NO_BROWSER = "1"
+          $env:POS_ADDR = "127.0.0.1:7777"
+          $p = Start-Process -FilePath ".\pos.exe" -PassThru
+          Start-Sleep -Seconds 5
+
+          if ($p.HasExited) {
+            Write-Host "pos.exe exited early with code $($p.ExitCode)"
+            if (Test-Path "$env:TEMP\alkenacode-pos.log") { Get-Content "$env:TEMP\alkenacode-pos.log" }
+            exit 1
+          }
+
+          $ok = $false
+          try {
+            $r = Invoke-WebRequest -Uri "http://127.0.0.1:7777/api/config" -UseBasicParsing -TimeoutSec 10
+            Write-Host "HTTP $($r.StatusCode): $($r.Content)"
+            if ($r.StatusCode -eq 200) { $ok = $true }
+            $s = Invoke-WebRequest -Uri "http://127.0.0.1:7777/api/sync/status" -UseBasicParsing -TimeoutSec 10
+            Write-Host "sync status: $($s.Content)"
+          } finally {
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          }
+
+          Write-Host "==== startup log ===="
+          if (Test-Path "$env:TEMP\alkenacode-pos.log") { Get-Content "$env:TEMP\alkenacode-pos.log" }
+
+          if (-not $ok) { Write-Error "agent did not serve a 200 from /api/config"; exit 1 }
+          Write-Host "OK: the agent launched and served on Windows."

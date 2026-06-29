@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a5c43">
+  <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMTZhMDZmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMGU3YzVhIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iOCIgZmlsbD0iIzBhNGQzOSIvPjxyZWN0IHg9IjMiIHk9IjMiIHdpZHRoPSIyNiIgaGVpZ2h0PSIyNiIgcng9IjYuNSIgZmlsbD0idXJsKCNnKSIvPjxyZWN0IHg9IjMiIHk9IjMiIHdpZHRoPSIyNiIgaGVpZ2h0PSIyNiIgcng9IjYuNSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmZmZmIiBzdHJva2Utb3BhY2l0eT0iMC4yOCIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+">
+  <title>POS</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img id="brandLogo" class="brand-logo is-hidden" alt="">
+      <span class="brand-mark" id="brandMark" aria-hidden="true"></span>
+      <span class="brand-name" id="shopName">My Shop</span>
+    </div>
+    <div class="topbar-right">
+      <button id="syncPill" class="sync-pill is-hidden" type="button" data-view="setup" data-setup="syncPanel" aria-label="Cloud sync status">
+        <span class="sync-pill-dot" aria-hidden="true"></span>
+        <span class="sync-pill-text" id="syncPillText">Synced</span>
+      </button>
+      <div id="accountMenu" class="account is-hidden">
+        <span class="account-email" id="accountEmail"></span>
+        <button id="signOut" class="btn-ghost btn-sm" type="button">Sign out</button>
+      </div>
+      <nav class="tabs" aria-label="Main">
+        <button class="tab is-active" type="button" data-view="sell">Sell</button>
+        <button class="tab" type="button" data-view="items">Items</button>
+        <button class="tab" type="button" data-view="today">Today</button>
+        <button class="tab" type="button" data-view="sales">Sales</button>
+        <button class="tab" type="button" data-view="setup">Setup</button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- Verify-email banner (hosted app, until the email is confirmed) -->
+    <div id="verifyBanner" class="banner is-hidden">
+      <span>Confirm your email to secure your shop. We sent a link to <strong id="verifyEmail"></strong>.</span>
+      <span class="banner-actions">
+        <button id="verifyResend" class="link" type="button">Resend</button>
+        <button id="verifyDismiss" class="nudge-close" type="button" aria-label="Dismiss">&times;</button>
+      </span>
+    </div>
+
+    <!-- ============ SELL ============ -->
+    <section id="view-sell" class="view view-sell">
+      <div id="printerNudge" class="nudge is-hidden">
+        <span>Set up your printer to print receipts. You can still record sales without it.</span>
+        <span class="nudge-actions">
+          <button class="link" type="button" data-view="setup" data-setup="printerPanel">Set up</button>
+          <button class="nudge-close" type="button" id="dismissNudge" aria-label="Dismiss">&times;</button>
+        </span>
+      </div>
+
+      <div class="counter">
+        <!-- Catalogue -->
+        <div class="catalogue">
+          <div class="search">
+            <input id="search" type="search" placeholder="Search items" autocomplete="off" aria-label="Search items">
+            <button id="addItemBtn" class="btn-ghost" type="button">Add item</button>
+          </div>
+          <div id="productGrid" class="grid" role="list"></div>
+          <div id="catalogueEmpty" class="empty is-hidden">
+            <p class="empty-title">No items yet</p>
+            <p class="muted">Add the things you sell, like Bread or Milk, and they will show up here to tap.</p>
+            <button class="btn-secondary" type="button" data-open="addItem">Add your first item</button>
+          </div>
+          <div id="searchEmpty" class="empty is-hidden">
+            <p class="muted">No items match that search.</p>
+          </div>
+        </div>
+
+        <!-- Cart (desktop pane / mobile sheet) -->
+        <aside class="cart" id="cart" aria-label="Cart">
+          <div class="cart-head">
+            <h2>Cart</h2>
+            <button id="clearCart" class="link" type="button">Clear</button>
+            <button id="closeCart" class="sheet-close" type="button" aria-label="Close cart">&times;</button>
+          </div>
+          <ul id="cartList" class="cart-list" role="list"></ul>
+          <div id="cartEmpty" class="cart-empty">
+            <p class="muted">Tap an item to start a sale.</p>
+          </div>
+          <div class="cart-foot">
+            <div class="bill" id="cartBill">
+              <div class="bill-row is-hidden" id="cartSubtotalRow">
+                <span>Subtotal</span>
+                <span class="num" id="cartSubtotal">KSh 0.00</span>
+              </div>
+              <div class="bill-row is-hidden" id="cartTaxRow">
+                <span id="cartTaxLabel">VAT</span>
+                <span class="num" id="cartTax">KSh 0.00</span>
+              </div>
+            </div>
+            <div class="total-row">
+              <span class="total-label">Total</span>
+              <span class="total-amount num" id="cartTotal">KSh 0.00</span>
+            </div>
+            <p class="bill-note muted is-hidden" id="cartInclNote"></p>
+            <button id="chargeBtn" class="btn-primary btn-charge" type="button" disabled>
+              <span class="btn-main">Charge</span>
+              <span class="btn-sub">Lipa</span>
+            </button>
+          </div>
+        </aside>
+      </div>
+
+      <!-- Mobile sticky cart bar -->
+      <button id="cartBar" class="cart-bar is-hidden" type="button">
+        <span class="cart-bar-count" id="cartBarCount">0 items</span>
+        <span class="cart-bar-total num" id="cartBarTotal">KSh 0.00</span>
+        <span class="cart-bar-cta">Review</span>
+      </button>
+    </section>
+
+    <!-- ============ ITEMS ============ -->
+    <section id="view-items" class="view is-hidden">
+      <div class="section-head">
+        <h2>Items</h2>
+        <button class="btn-secondary" type="button" data-open="addItem">Add item</button>
+      </div>
+      <ul id="itemsList" class="items-list" role="list"></ul>
+      <div id="itemsEmpty" class="empty is-hidden">
+        <p class="empty-title">No items yet</p>
+        <p class="muted">Add the things you sell so they show up on the Sell screen.</p>
+        <button class="btn-secondary" type="button" data-open="addItem">Add your first item</button>
+      </div>
+    </section>
+
+    <!-- ============ TODAY ============ -->
+    <section id="view-today" class="view is-hidden">
+      <div class="dash">
+        <div class="stat-row">
+          <div class="stat-card stat-card--lead">
+            <p class="stat-label">Sales today</p>
+            <p class="stat-value num" id="statSalesToday">KSh 0.00</p>
+            <p class="stat-delta" id="statSalesDelta"></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Receipts</p>
+            <p class="stat-value num" id="statReceipts">0</p>
+            <p class="stat-sub" id="statReceiptsDelta"></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Items sold</p>
+            <p class="stat-value num" id="statItems">0</p>
+            <p class="stat-sub" id="statItemsDelta"></p>
+          </div>
+        </div>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Last 7 days</h2>
+            <span class="muted" id="weekTotal"></span>
+          </div>
+          <div class="bar-chart" id="weekChart" aria-hidden="true"></div>
+        </section>
+
+        <div class="dash-two">
+          <section class="panel">
+            <div class="panel-head">
+              <h2 class="panel-title">Top sellers</h2>
+              <span class="muted">last 7 days</span>
+            </div>
+            <div class="rank-list" id="topProducts"></div>
+            <p class="dash-empty muted is-hidden" id="topEmpty">No sales in the last 7 days yet.</p>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2 class="panel-title">Busiest hours</h2>
+              <span class="muted">last 7 days</span>
+            </div>
+            <div class="bar-chart hours-chart" id="hoursChart" aria-hidden="true"></div>
+            <p class="dash-empty muted is-hidden" id="hoursEmpty">No sales in the last 7 days yet.</p>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Today's receipts</h2>
+            <span class="muted" id="todayCount"></span>
+          </div>
+          <ul id="salesList" class="sales-list" role="list"></ul>
+          <div id="salesEmpty" class="empty">
+            <p class="empty-title">No sales yet today</p>
+            <p class="muted">Completed sales will appear here. You can reprint any receipt.</p>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <!-- ============ SALES (search) ============ -->
+    <section id="view-sales" class="view is-hidden">
+      <div class="section-head">
+        <h2>Sales</h2>
+        <span class="muted">Find any past sale</span>
+      </div>
+      <section class="panel">
+        <form id="salesSearchForm" class="search-form">
+          <div class="filter-grid">
+            <label class="field">
+              <span>M-Pesa code</span>
+              <input id="qRef" type="text" autocomplete="off" placeholder="Exact code, e.g. QGH7XK9P2L">
+            </label>
+            <label class="field">
+              <span>Item</span>
+              <input id="qItem" type="text" autocomplete="off" placeholder="Item name contains...">
+            </label>
+            <label class="field">
+              <span>Payment</span>
+              <select id="qMethod">
+                <option value="">Any</option>
+                <option value="cash">Cash</option>
+                <option value="mpesa">M-Pesa</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>From</span>
+              <input id="qFrom" type="date">
+            </label>
+            <label class="field">
+              <span>To</span>
+              <input id="qTo" type="date">
+            </label>
+            <label class="field">
+              <span>Min (KSh)</span>
+              <input id="qMin" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0">
+            </label>
+            <label class="field">
+              <span>Max (KSh)</span>
+              <input id="qMax" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Any">
+            </label>
+          </div>
+          <div class="search-actions">
+            <button type="submit" class="btn-primary" id="salesSearchBtn">Search</button>
+            <button type="button" class="btn-ghost" id="salesSearchClear">Clear</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Results</h2>
+          <span class="muted" id="salesResultCount"></span>
+        </div>
+        <ul id="salesResults" class="sales-list" role="list"></ul>
+        <div id="salesSearchEmpty" class="empty">
+          <p class="muted">Search your sales by M-Pesa code, item, date, amount, or payment type. Leave everything blank and search to see your most recent sales.</p>
+        </div>
+        <p class="muted search-more is-hidden" id="salesTruncated">Showing the first 500 matches. Narrow your search to see more.</p>
+      </section>
+    </section>
+
+    <!-- ============ SETUP ============ -->
+    <section id="view-setup" class="view is-hidden">
+      <div class="section-head setup-head">
+        <h2>Setup</h2>
+        <span class="muted">Make this till yours</span>
+      </div>
+      <div class="setup">
+        <nav class="setup-nav" aria-label="Setup sections">
+          <button type="button" class="setup-tab is-active" data-panel="shopPanel" aria-current="true">Shop</button>
+          <button type="button" class="setup-tab" data-panel="printerPanel">Printer</button>
+          <button type="button" class="setup-tab" data-panel="receiptStylePanel">Receipt</button>
+          <button type="button" class="setup-tab" data-panel="taxPanel">Tax</button>
+          <button type="button" class="setup-tab" data-panel="scannerPanel">Scanner</button>
+          <button type="button" class="setup-tab" data-panel="syncPanel">Cloud sync</button>
+          <button type="button" class="setup-tab" data-panel="recordsPanel">Records</button>
+        </nav>
+        <div class="setup-panels">
+        <section class="panel is-current" id="shopPanel">
+          <h2>Your shop</h2>
+          <label class="field">
+            <span>Shop name</span>
+            <input id="shopNameInput" type="text" placeholder="My Shop" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>Receipt paper size</span>
+            <select id="paperWidth">
+              <option value="80">80mm (wide)</option>
+              <option value="58">58mm (narrow)</option>
+            </select>
+          </label>
+          <button id="saveShop" class="btn-secondary" type="button">Save shop details</button>
+
+          <div class="field logo-field">
+            <span class="field-label">Logo (optional)</span>
+            <div class="logo-row">
+              <img id="logoThumb" class="logo-thumb is-hidden" alt="Shop logo">
+              <div class="logo-actions">
+                <label class="btn-secondary file-btn">
+                  Upload logo
+                  <input id="logoInput" type="file" accept="image/png,image/jpeg" hidden>
+                </label>
+                <button id="logoRemove" class="btn-ghost is-hidden" type="button">Remove</button>
+              </div>
+            </div>
+            <p class="muted">Shows in the top corner and prints at the top of your receipt. A simple, high-contrast image prints best.</p>
+          </div>
+        </section>
+
+        <section class="panel" id="taxPanel">
+          <div class="panel-intro">
+            <h2>Tax</h2>
+            <p class="muted">Charge VAT or other tax on sales. Off by default. Items can be marked exempt one by one when you add or edit them.</p>
+          </div>
+          <label class="field">
+            <span>Tax on sales</span>
+            <select id="taxMode">
+              <option value="none">No tax</option>
+              <option value="exclusive">Add tax on top of prices</option>
+              <option value="inclusive">Prices already include tax</option>
+            </select>
+          </label>
+          <label class="field is-hidden" id="taxRateField">
+            <span>Tax rate</span>
+            <span class="input-suffix">
+              <input id="taxRate" type="number" inputmode="decimal" min="0" max="100" step="0.1" placeholder="16">
+              <span class="suffix">%</span>
+            </span>
+          </label>
+          <button id="saveTax" class="btn-secondary" type="button">Save tax settings</button>
+          <p class="muted tax-hint" id="taxHint"></p>
+        </section>
+
+        <section class="panel" id="recordsPanel">
+          <div class="panel-intro">
+            <h2>Your records</h2>
+            <p class="muted">Download your sales and your activity log for your books. Choose a file type, pick a date range, or leave both dates blank for everything.</p>
+          </div>
+          <div class="filter-grid">
+            <label class="field">
+              <span>From</span>
+              <input id="exportFrom" type="date">
+            </label>
+            <label class="field">
+              <span>To</span>
+              <input id="exportTo" type="date">
+            </label>
+            <label class="field">
+              <span>File type</span>
+              <select id="exportFormat">
+                <option value="csv">CSV (spreadsheet)</option>
+                <option value="xlsx">Excel (.xlsx)</option>
+                <option value="pdf">PDF</option>
+              </select>
+            </label>
+          </div>
+          <div class="panel-actions">
+            <button id="exportSales" class="btn-primary" type="button">Download transactions</button>
+            <button id="exportAudit" class="btn-secondary" type="button">Download activity log</button>
+          </div>
+        </section>
+
+        <section class="panel" id="syncPanel">
+          <div class="panel-intro">
+            <h2>Cloud sync</h2>
+            <p class="muted">Back up your shop and share it across devices. Everything is saved on this device and works offline; when you are online it syncs on its own.</p>
+          </div>
+
+          <div id="syncLinkForm">
+            <label class="field">
+              <span>Email</span>
+              <input id="syncEmail" type="email" autocomplete="username" placeholder="you@example.com">
+            </label>
+            <label class="field">
+              <span>Password</span>
+              <input id="syncPassword" type="password" autocomplete="current-password" placeholder="Your password">
+            </label>
+            <button id="syncLink" class="btn-primary" type="button">Link this device</button>
+            <p class="muted">Create your account on the cloud website first, then sign in here to link this till.</p>
+          </div>
+
+          <div id="syncLinked" class="is-hidden">
+            <p class="sync-state" id="syncStateLine">
+              <span class="dot" aria-hidden="true"></span>
+              <span id="syncLinkedText">Linked</span>
+            </p>
+            <p class="muted" id="syncMeta"></p>
+            <p class="sync-error is-hidden" id="syncError"></p>
+            <div class="sync-actions">
+              <button id="syncNow" class="btn-secondary" type="button">Sync now</button>
+              <button id="syncUnlink" class="btn-ghost" type="button">Unlink this device</button>
+            </div>
+          </div>
+          <p id="syncStatus" class="status" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="panel" id="printerPanel">
+          <h2>Your printer</h2>
+          <p class="printer-state" id="currentPrinter">
+            <span class="dot" aria-hidden="true"></span>
+            <span id="currentPrinterText">No printer chosen yet.</span>
+          </p>
+          <p class="muted printer-addr is-hidden" id="printerAddrLine">Printing to <span id="printerAddrText" class="printer-addr-value"></span></p>
+          <p class="muted" id="printerHelp">We will look for your receipt printer on this network.</p>
+          <div class="printer-actions">
+            <button id="find" class="btn-primary" type="button">Find my printer</button>
+            <button id="printerTest" class="btn-secondary is-hidden" type="button">Print a test receipt</button>
+            <button id="printerForget" class="btn-ghost is-hidden" type="button">Remove printer</button>
+          </div>
+          <p id="setupStatus" class="status" role="status" aria-live="polite"></p>
+          <ul id="results" class="results" role="list"></ul>
+        </section>
+
+        <section class="panel" id="receiptStylePanel">
+          <div class="panel-intro">
+            <h2>Receipt style</h2>
+            <p class="muted">Choose how your printed receipt looks. The preview updates as you choose.</p>
+          </div>
+          <div class="theme-picker" id="themePicker" role="radiogroup" aria-label="Receipt style">
+            <button type="button" class="theme-opt" data-theme="classic">Classic</button>
+            <button type="button" class="theme-opt" data-theme="minimal">Minimal</button>
+            <button type="button" class="theme-opt" data-theme="bold">Bold</button>
+          </div>
+
+          <label class="field">
+            <span>Header line (optional)</span>
+            <input id="headerLine" type="text" autocomplete="off" placeholder="Phone, address, or a short welcome">
+          </label>
+
+          <div class="field">
+            <span class="field-label">Ending message</span>
+            <div class="preset-chips" id="footerPresets">
+              <button type="button" class="chip-sm" data-footer="Asante sana&#10;Thank you">Asante sana</button>
+              <button type="button" class="chip-sm" data-footer="Thanks so much!">Thanks so much</button>
+              <button type="button" class="chip-sm" data-footer="Karibu tena">Karibu tena</button>
+              <button type="button" class="chip-sm" data-footer="">None</button>
+            </div>
+            <textarea id="footerText" class="field-textarea" rows="2" placeholder="Type your own ending message"></textarea>
+          </div>
+
+          <p class="preview-label muted">Preview</p>
+          <div class="receipt-paper">
+            <img id="previewLogo" class="preview-logo is-hidden" alt="">
+            <pre id="receiptPreview" class="receipt-text" aria-label="Receipt preview"></pre>
+          </div>
+          <button id="printSample" class="btn-secondary" type="button">Print a sample</button>
+        </section>
+
+        <section class="panel" id="scannerPanel">
+          <h2>Barcode scanner</h2>
+          <label class="switch-row">
+            <span class="switch-text">
+              <span class="switch-title">Use a barcode scanner</span>
+              <span class="muted">Scan items straight into the sale, and scan new items when adding them. Works with any USB scanner that types the code and presses enter. No setup needed.</span>
+            </span>
+            <input type="checkbox" id="scannerToggle" class="switch-input">
+            <span class="switch" aria-hidden="true"></span>
+          </label>
+        </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ PAYMENT SHEET ============ -->
+  <div id="payOverlay" class="overlay is-hidden">
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="Take payment">
+      <div class="sheet-head">
+        <h2>Take payment</h2>
+        <button id="payCancel" class="sheet-close" type="button" aria-label="Cancel">&times;</button>
+      </div>
+
+      <div class="seg" id="payMethodSeg" role="tablist" aria-label="Payment method">
+        <button type="button" class="seg-opt is-active" data-method="cash" role="tab">Cash</button>
+        <button type="button" class="seg-opt" data-method="mpesa" role="tab">M-Pesa</button>
+      </div>
+
+      <div class="pay-summary">
+        <div class="pay-line is-hidden" id="paySubtotalRow">
+          <span>Subtotal</span>
+          <span class="num" id="paySubtotal">KSh 0.00</span>
+        </div>
+        <div class="pay-line is-hidden" id="payTaxRow">
+          <span id="payTaxLabel">VAT</span>
+          <span class="num" id="payTax">KSh 0.00</span>
+        </div>
+        <div class="pay-line pay-total-line">
+          <span>Total</span>
+          <span class="num" id="payTotal">KSh 0.00</span>
+        </div>
+        <div class="pay-line pay-received" id="payReceivedRow">
+          <span>Cash received</span>
+          <span class="num" id="payReceived">KSh 0.00</span>
+        </div>
+        <div class="pay-change" id="payChangeRow">
+          <span>Change</span>
+          <span class="num" id="payChange">KSh 0.00</span>
+        </div>
+      </div>
+
+      <label class="field mpesa-ref is-hidden" id="mpesaRefField">
+        <span>M-Pesa code (optional)</span>
+        <input id="mpesaRef" type="text" autocomplete="off" placeholder="e.g. QGH7XK9P2L" maxlength="20">
+      </label>
+
+      <div class="quick-cash" id="quickCash">
+        <button type="button" class="chip" data-exact="1">Exact</button>
+        <button type="button" class="chip" data-cash="50">50</button>
+        <button type="button" class="chip" data-cash="100">100</button>
+        <button type="button" class="chip" data-cash="200">200</button>
+        <button type="button" class="chip" data-cash="500">500</button>
+        <button type="button" class="chip" data-cash="1000">1000</button>
+      </div>
+
+      <div class="pad" id="pad">
+        <button type="button" class="key" data-digit="1">1</button>
+        <button type="button" class="key" data-digit="2">2</button>
+        <button type="button" class="key" data-digit="3">3</button>
+        <button type="button" class="key" data-digit="4">4</button>
+        <button type="button" class="key" data-digit="5">5</button>
+        <button type="button" class="key" data-digit="6">6</button>
+        <button type="button" class="key" data-digit="7">7</button>
+        <button type="button" class="key" data-digit="8">8</button>
+        <button type="button" class="key" data-digit="9">9</button>
+        <button type="button" class="key" data-zeros="00">00</button>
+        <button type="button" class="key" data-digit="0">0</button>
+        <button type="button" class="key key-back" data-back="1" aria-label="Delete">&#9003;</button>
+      </div>
+
+      <button id="completeSale" class="btn-primary btn-complete" type="button" disabled>
+        <span class="btn-main">Complete sale</span>
+        <span class="btn-sub">Maliza</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ SUCCESS ============ -->
+  <div id="successOverlay" class="overlay is-hidden">
+    <div class="success" role="dialog" aria-modal="true" aria-label="Sale complete">
+      <div class="success-badge" id="successBadge" aria-hidden="true"></div>
+      <p class="success-title" id="successTitle">Sale complete</p>
+      <div class="success-change">
+        <span>Change due</span>
+        <span class="num" id="successChange">KSh 0.00</span>
+      </div>
+      <div class="print-step" id="printStep" role="status" aria-live="polite">
+        <span class="print-step-icon" aria-hidden="true"></span>
+        <span class="print-step-text" id="printStepText">Printing receipt...</span>
+      </div>
+      <div class="success-actions">
+        <button id="printReceiptBtn" class="btn-secondary is-hidden" type="button">Print receipt</button>
+        <button id="successRetry" class="btn-secondary is-hidden" type="button">Try printing again</button>
+        <button id="printSetup" class="btn-secondary is-hidden" type="button">Set up printer</button>
+        <button id="successNext" class="btn-primary" type="button">Next sale</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ADD ITEM ============ -->
+  <div id="itemOverlay" class="overlay is-hidden">
+    <div class="sheet sheet-narrow" role="dialog" aria-modal="true" aria-label="Add item">
+      <div class="sheet-head">
+        <h2 id="itemTitle">Add item</h2>
+        <button id="itemCancel" class="sheet-close" type="button" aria-label="Cancel">&times;</button>
+      </div>
+      <label class="field">
+        <span>Name</span>
+        <input id="itemName" type="text" placeholder="Bread" autocomplete="off">
+      </label>
+      <label class="field">
+        <span>Price (KSh)</span>
+        <input id="itemPrice" type="number" inputmode="decimal" min="0" step="0.01" placeholder="65">
+      </label>
+      <label class="field is-hidden" id="itemBarcodeField">
+        <span>Barcode</span>
+        <input id="itemBarcode" type="text" inputmode="numeric" placeholder="Scan or type the barcode" autocomplete="off">
+      </label>
+      <label class="switch-row item-switch is-hidden" id="taxableField">
+        <span class="switch-text">
+          <span class="switch-title">Charge tax on this item</span>
+          <span class="muted">Turn off for tax-exempt goods, like some unprocessed foods.</span>
+        </span>
+        <input type="checkbox" id="taxable" class="switch-input" checked>
+        <span class="switch" aria-hidden="true"></span>
+      </label>
+      <label class="switch-row item-switch">
+        <span class="switch-text">
+          <span class="switch-title">Track stock</span>
+          <span class="muted">Count how many you have. The number goes down as you sell, and you get a warning when it runs low.</span>
+        </span>
+        <input type="checkbox" id="trackStock" class="switch-input">
+        <span class="switch" aria-hidden="true"></span>
+      </label>
+      <label class="field is-hidden" id="stockField">
+        <span>How many in stock</span>
+        <input id="stockCount" type="number" inputmode="numeric" min="0" step="1" placeholder="0">
+      </label>
+      <button id="saveItem" class="btn-primary" type="button">Save item</button>
+    </div>
+  </div>
+
+  <!-- ============ CONFIRM ============ -->
+  <div id="confirmOverlay" class="overlay is-hidden">
+    <div class="sheet sheet-narrow" role="dialog" aria-modal="true" aria-label="Please confirm">
+      <div class="sheet-head">
+        <h2 id="confirmTitle">Delete item</h2>
+        <button id="confirmCancel" class="sheet-close" type="button" aria-label="Cancel">&times;</button>
+      </div>
+      <p id="confirmText" class="muted"></p>
+      <div class="modal-actions">
+        <button id="confirmCancel2" class="btn-ghost" type="button">Cancel</button>
+        <button id="confirmOk" class="btn-danger" type="button">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ADD STOCK ============ -->
+  <div id="restockOverlay" class="overlay is-hidden">
+    <div class="sheet sheet-narrow" role="dialog" aria-modal="true" aria-label="Add stock">
+      <div class="sheet-head">
+        <h2 id="restockTitle">Add stock</h2>
+        <button id="restockCancel" class="sheet-close" type="button" aria-label="Cancel">&times;</button>
+      </div>
+      <p class="muted" id="restockCurrent"></p>
+      <label class="field">
+        <span>Add how many</span>
+        <input id="restockQty" type="number" inputmode="numeric" min="1" step="1" placeholder="0">
+      </label>
+      <button id="restockSave" class="btn-primary" type="button">Add stock</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast is-hidden" role="status" aria-live="polite"></div>
+
+  <!-- ============ AUTH GATE (hosted web app only) ============ -->
+  <div id="authGate" class="auth-gate is-hidden">
+    <div class="auth-card" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <div class="auth-brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="auth-brand-name">POS</span>
+      </div>
+      <h1 id="authTitle" class="auth-title">Sign in to your shop</h1>
+      <p class="auth-sub" id="authSub">Welcome back. Sign in to start selling.</p>
+      <form id="authForm" class="auth-form">
+        <label class="field" id="authEmailField">
+          <span>Email</span>
+          <input id="authEmail" type="email" autocomplete="username" placeholder="you@example.com">
+        </label>
+        <label class="field" id="authPasswordField">
+          <span id="authPasswordLabel">Password</span>
+          <input id="authPassword" type="password" autocomplete="current-password" placeholder="Your password">
+        </label>
+        <p class="auth-error is-hidden" id="authError" role="alert"></p>
+        <p class="auth-info is-hidden" id="authInfo" role="status"></p>
+        <button id="authSubmit" class="btn-primary" type="submit">Sign in</button>
+      </form>
+      <p class="auth-aux is-hidden" id="authForgotRow">
+        <button id="authForgot" class="link" type="button">Forgot password?</button>
+      </p>
+      <p class="auth-switch">
+        <span id="authSwitchText">New here?</span>
+        <button id="authToggle" class="link" type="button">Create an account</button>
+      </p>
+    </div>
+  </div>
+
+  <!-- Get-the-desktop-app banner. Hosted app only, shown at the bottom when a
+       download is available. Prompts installing the local agent so the shop can
+       print receipts and keep selling with no internet. -->
+  <div id="getAppBanner" class="getapp-banner is-hidden">
+    <span class="getapp-text">
+      <strong>Print receipts and keep selling offline.</strong>
+      Get the free app for your shop computer. It finds your printer for you.
+    </span>
+    <span class="getapp-actions">
+      <a id="getAppLink" class="getapp-btn" href="/download/pos.exe" download>Get the app</a>
+      <button class="getapp-close" type="button" id="getAppDismiss" aria-label="Not now">&times;</button>
+    </span>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+# Build output
+/pos
+/pos.exe
+/dist/
+*.exe
+
+# Generated Windows resource (icon/version), produced by `make build-agent-windows`
+cmd/pos/*.syso
+
+# Local agent runtime data (created at runtime, never committed)
+/data/
+*.db
+*.sqlite
+
+# Generated copy of the web UI for the cloud module's embed (single source of
+# truth is internal/web/ui). Regenerate with `make sync-ui`; built into the image
+# by Dockerfile.cloud. Never edit or commit this copy.
+/cloud/internal/web/ui/
+
+# Machine-local Claude / Impeccable config and runtime caches
+.claude/settings.local.json
+.impeccable/config.local.json
+.impeccable/*.cache.json
+
+# Production secrets / generated deploy files (VPS-only, never committed)
+.env.pos
+smtp.env
+/scripts/docker-initdb.prod.sql
+
+# OS noise
+.DS_Store
+Thumbs.db
