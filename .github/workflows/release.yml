@@ -1,0 +1,87 @@
+name: release
+
+# Builds the Windows agent, signs it with SignPath when configured, and
+# publishes a GitHub Release. Until the SignPath secrets/variables are set it
+# still works — it just publishes the unsigned binary and prints a warning. Add
+# the SignPath config (see docs/SIGNING.md) and the next release is signed
+# automatically, no workflow changes needed.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 1.0.0"
+        required: true
+        default: "1.0.0"
+
+permissions:
+  contents: write   # create the GitHub Release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build Windows agent (386, GUI, icon + version)
+        shell: bash
+        run: |
+          # The version resource is generated with the host Go; the binary itself
+          # is built with the Win7-capable Go 1.20 toolchain (auto-downloaded).
+          go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.4.1
+          "$(go env GOPATH)/bin/goversioninfo" -64=false \
+            -icon build/windows/pos.ico \
+            -o cmd/pos/resource_windows_386.syso \
+            build/windows/versioninfo.json
+          mkdir -p dist
+          GOTOOLCHAIN=go1.20.14 GOOS=windows GOARCH=386 CGO_ENABLED=0 \
+            go build -trimpath -ldflags="-s -w -H windowsgui" -o dist/pos.exe ./cmd/pos
+          ls -la dist/
+
+      - name: Upload unsigned artifact
+        id: unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: pos-exe-unsigned
+          path: dist/pos.exe
+
+      - name: Sign with SignPath
+        id: sign
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: SignPath/github-action-submit-signing-request@v2.2
+        with:
+          connector-url: ${{ vars.SIGNPATH_CONNECTOR_URL }}
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIG_SLUG }}
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      - name: Choose artifact (signed if available)
+        id: pick
+        shell: bash
+        run: |
+          if [ -f signed/pos.exe ]; then
+            echo "path=signed/pos.exe" >> "$GITHUB_OUTPUT"
+            echo "Releasing the SIGNED binary."
+          else
+            echo "path=dist/pos.exe" >> "$GITHUB_OUTPUT"
+            echo "::warning::SignPath not configured — releasing an UNSIGNED binary. See docs/SIGNING.md."
+          fi
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', inputs.version) }}
+          name: AlkenaCode POS ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', inputs.version) }}
+          files: ${{ steps.pick.outputs.path }}
+          generate_release_notes: true
